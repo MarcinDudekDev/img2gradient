@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="author" content="Marcin Dudek">
 <title>img2gradient — image to pure-CSS gradient</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -93,6 +94,13 @@
     color: var(--muted);
     text-wrap: pretty;
   }
+  .brand .tag a {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+  .brand .tag a:hover, .brand .tag a:focus-visible { color: var(--accent); }
   .actions { display: flex; gap: 12px; align-items: center; padding-bottom: 4px; }
   .btn {
     font: 500 16px/1 "Schibsted Grotesk", sans-serif;
@@ -393,7 +401,7 @@
   <header class="top">
     <div class="brand">
       <h1>img2<span class="grad">gradient</span></h1>
-      <p class="tag">Turn any image into pure-CSS radial gradients that keep the original's spatial layout — a soft, paintable placeholder in a few&nbsp;kilobytes. 100% client-side, nothing&nbsp;uploaded.</p>
+      <p class="tag">Turn any image into pure-CSS radial gradients that keep the original's spatial layout — a soft, paintable placeholder in a few&nbsp;kilobytes. 100% client-side, nothing&nbsp;uploaded. By <a href="https://marcindudek.dev/" rel="author">Marcin&nbsp;Dudek</a>.</p>
     </div>
     <div class="actions">
       <button class="btn btn-primary" id="pickBtn" type="button">Use your image</button>

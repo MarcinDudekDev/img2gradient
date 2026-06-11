@@ -82,7 +82,7 @@
 <body>
 <div class="wrap">
   <h1>The gamma error in dominant-color extraction</h1>
-  <p class="sub">Resizing an image to 1×1 px with Imagick/GD (default pipeline) averages <em>gamma-encoded</em> sRGB values. The physically correct average — what you see squinting at the photo from across the room — averages in <em>linear light</em>, then re-encodes. Gamma-space averaging skews placeholder colors darker and duller; the gap grows with image contrast. Reference: <a href="http://www.ericbrasseur.org/gamma.html">Eric Brasseur, “Gamma error in picture scaling”</a>.</p>
+  <p class="sub">Resizing an image to 1×1 px with Imagick/GD (default pipeline) averages <em>gamma-encoded</em> sRGB values. The physically correct average — what you see squinting at the photo from across the room — averages in <em>linear light</em>, then re-encodes. Gamma-space averaging skews placeholder colors darker and duller; the gap grows with image contrast. Reference: <a href="http://www.ericbrasseur.org/gamma.html">Eric Brasseur, “Gamma error in picture scaling”</a>. Demo by <a href="https://marcindudek.dev/" rel="author">Marcin Dudek</a>, part of <a href="https://marcindudekdev.github.io/img2gradient/">img2gradient</a>.</p>
   <div class="formula">gamma avg:  mean(srgb)                       ← Imagick/GD default, e.g. -resize 1x1
 linear avg: srgb_encode( mean(srgb_decode) )  ← -colorspace RGB -resize 1x1 -colorspace sRGB</div>
   <div id="status">Loading sample images…</div>

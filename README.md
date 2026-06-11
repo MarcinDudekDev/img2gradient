@@ -40,6 +40,10 @@ At 8–16 blobs (~0.4–1.5 KB) the output works as a low-quality image placehol
 
 It's one self-contained HTML file. Open `index.html` in a browser, or serve it from anywhere. No build, no dependencies, no network calls (the webfonts degrade gracefully offline).
 
+## Author
+
+[Marcin Dudek](https://marcindudek.dev/) — WordPress performance & indie tools. More at [marcindudek.dev](https://marcindudek.dev/).
+
 ## License
 
 MIT

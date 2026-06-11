@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>img2gradient — image to pure-CSS gradient</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,640&family=Schibsted+Grotesk:wght@400;500;700&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f5f1e8;
+    --paper-2: #efe9dc;
+    --ink: #211d18;
+    --muted: #5f574b;
+    --line: #d8cfbe;
+    --accent: #b3471a;
+    --code-bg: #211d18;
+    --code-fg: #e8dfcf;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: "Schibsted Grotesk", "Helvetica Neue", sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    position: relative;
+  }
+  /* dogfooding: this wash IS the tool's own output (demo photo, 3×3 grid, faded) */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    opacity: .16;
+    pointer-events: none;
+    background-image:
+      radial-gradient(57% 57% at 16.7% 16.7%,#c4b6a4,#c4b6a400),
+      radial-gradient(57% 57% at 50% 16.7%,#cbb9a2,#cbb9a200),
+      radial-gradient(57% 57% at 83.3% 16.7%,#d3c3ae,#d3c3ae00),
+      radial-gradient(57% 57% at 16.7% 50%,#b49a7e,#b49a7e00),
+      radial-gradient(57% 57% at 50% 50%,#ad9277,#ad927700),
+      radial-gradient(57% 57% at 83.3% 50%,#d8c8b4,#d8c8b400),
+      radial-gradient(57% 57% at 16.7% 83.3%,#a98e72,#a98e7200),
+      radial-gradient(57% 57% at 50% 83.3%,#bdaa8d,#bdaa8d00),
+      radial-gradient(57% 57% at 83.3% 83.3%,#cfbfa9,#cfbfa900);
+    background-color: #c2ad94;
+  }
+  .shell {
+    position: relative;
+    z-index: 1;
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 28px clamp(20px, 3vw, 48px) 64px;
+  }
+
+  /* ---------- header ---------- */
+  header.top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 26px;
+  }
+  .brand h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 640;
+    font-size: clamp(40px, 5vw, 64px);
+    line-height: 1.02;
+    margin: 0;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+  .brand h1 .grad {
+    background-image:
+      radial-gradient(80% 130% at 20% 30%, #e08c2f, #e08c2f00),
+      radial-gradient(80% 130% at 55% 70%, #b3471a, #b3471a00),
+      radial-gradient(80% 130% at 85% 25%, #7a9bba, #7a9bba00);
+    background-color: #8a6a4d;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .brand .tag {
+    margin: 10px 0 0;
+    max-width: 52ch;
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--muted);
+    text-wrap: pretty;
+  }
+  .actions { display: flex; gap: 12px; align-items: center; padding-bottom: 4px; }
+  .btn {
+    font: 500 16px/1 "Schibsted Grotesk", sans-serif;
+    border: 1.5px solid var(--ink);
+    border-radius: 999px;
+    padding: 13px 22px;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease, transform .15s ease;
+    min-height: 44px;
+  }
+  .btn-primary { background: var(--ink); color: var(--paper); }
+  .btn-primary:hover { background: var(--accent); border-color: var(--accent); }
+  .btn-ghost { background: transparent; color: var(--ink); }
+  .btn-ghost:hover { background: var(--ink); color: var(--paper); }
+  .btn:focus-visible, input:focus-visible, .seg label:has(input:focus-visible) {
+    outline: 2.5px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .btn:active { transform: translateY(1px); }
+  #file { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+  /* ---------- comparison ---------- */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(14px, 2vw, 28px);
+  }
+  .pane { margin: 0; min-width: 0; }
+  .pane .media {
+    width: 100%;
+    aspect-ratio: var(--ar, 4 / 5);
+    max-height: 64vh;
+    margin: 0 auto;
+    max-width: calc(64vh * var(--arn, 0.8));
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgb(33 29 24 / .18), 0 14px 34px -18px rgb(33 29 24 / .45);
+    background:
+      repeating-conic-gradient(#e6dfd2 0% 25%, #efe9dc 0% 50%) 0 0 / 18px 18px;
+    position: relative;
+  }
+  #origImg { display: block; width: 100%; height: 100%; object-fit: cover; }
+  #gradBox { width: 100%; height: 100%; }
+  #origPane .media { cursor: pointer; }
+  #origPane .media::after {
+    content: "Click to replace ↺";
+    position: absolute;
+    inset: auto 10px 10px auto;
+    font: 500 14px/1 "Schibsted Grotesk", sans-serif;
+    color: #fff;
+    background: rgb(33 29 24 / .72);
+    padding: 9px 13px;
+    border-radius: 999px;
+    opacity: 0;
+    transition: opacity .2s ease;
+  }
+  #origPane .media:hover::after { opacity: 1; }
+  .pane figcaption {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-top: 12px;
+    font-size: 14px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .pane figcaption .stat {
+    font-family: "Spline Sans Mono", ui-monospace, monospace;
+    font-size: 14px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink);
+  }
+
+  /* ---------- controls ---------- */
+  .controls {
+    margin-top: 34px;
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+    gap: clamp(18px, 3vw, 44px);
+    align-items: start;
+    padding: 24px 0 26px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .ctl-label {
+    font-size: 14px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+  .seg {
+    display: inline-flex;
+    border: 1.5px solid var(--ink);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .seg label {
+    font-size: 15px;
+    font-weight: 500;
+    padding: 11px 18px;
+    cursor: pointer;
+    transition: background .18s ease, color .18s ease;
+    white-space: nowrap;
+  }
+  .seg label + label { border-left: 1.5px solid var(--ink); }
+  .seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .seg label:has(input:checked) { background: var(--ink); color: var(--paper); }
+  .seg label:hover:not(:has(input:checked)) { background: var(--paper-2); }
+  .slider-row { display: flex; align-items: center; gap: 14px; }
+  input[type=range] {
+    flex: 1;
+    appearance: none;
+    -webkit-appearance: none;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--ink);
+    cursor: pointer;
+    min-width: 120px;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 2.5px solid var(--ink);
+    transition: background .15s ease;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { background: var(--accent); border-color: var(--accent); }
+  input[type=range]::-moz-range-thumb {
+    width: 17px; height: 17px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 2.5px solid var(--ink);
+  }
+  .chip {
+    font: 500 14px/1.3 "Spline Sans Mono", ui-monospace, monospace;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 7px 10px;
+    white-space: nowrap;
+    color: var(--ink);
+  }
+  .hint { margin: 10px 0 0; font-size: 14px; color: var(--muted); text-wrap: pretty; }
+
+  /* ---------- code ---------- */
+  .code { margin-top: 30px; }
+  .code-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .code-head .ctl-label { margin: 0; }
+  .code-actions { display: flex; gap: 10px; }
+  textarea {
+    width: 100%;
+    height: 150px;
+    background: var(--code-bg);
+    color: var(--code-fg);
+    border: 0;
+    border-radius: 8px;
+    padding: 16px 18px;
+    font: 400 14px/1.6 "Spline Sans Mono", ui-monospace, monospace;
+    resize: vertical;
+  }
+  textarea:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+  #copyBtn.copied { background: #2c6e3f; border-color: #2c6e3f; color: #fff; }
+
+  /* ---------- drop overlay ---------- */
+  #dropOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgb(33 29 24 / .82);
+    color: var(--paper);
+    font-family: "Fraunces", Georgia, serif;
+    font-size: clamp(32px, 4.5vw, 56px);
+    font-weight: 640;
+    letter-spacing: -0.01em;
+  }
+  #dropOverlay.show { display: flex; }
+  #dropOverlay span { border: 2.5px dashed var(--paper); border-radius: 16px; padding: 40px 64px; }
+
+  .rail { display: contents; }
+
+  @media (max-width: 980px) {
+    .compare { grid-template-columns: 1fr; }
+    .controls { grid-template-columns: 1fr; }
+    .pane .media { max-height: 56vh; }
+  }
+
+  /* big screens: app layout — panes + control rail side by side, all in one
+     viewport. One spacing unit rules the frame: --pad on all four sides, the
+     header gap, and every column gutter; inner spacing is --pad/2. */
+  @media (min-width: 1600px) and (min-height: 700px) {
+    :root { --pad: 32px; }
+    html, body { height: 100%; overflow: hidden; } /* hard guarantee: one screen, no scroll */
+    .shell {
+      max-width: none;
+      height: 100vh;
+      padding: var(--pad);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      row-gap: var(--pad);
+      overflow: hidden;
+    }
+    header.top {
+      align-items: center;
+      padding-bottom: calc(var(--pad) / 2);
+      margin-bottom: 0;
+      flex-wrap: nowrap;
+    }
+    .brand { display: flex; align-items: baseline; gap: calc(var(--pad) / 2); min-width: 0; }
+    .brand h1 { font-size: 40px; white-space: nowrap; }
+    .brand .tag { margin: 0; max-width: 72ch; }
+    #app {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) clamp(380px, 24vw, 520px);
+      gap: var(--pad);
+    }
+    .compare { display: contents; }
+    .pane {
+      container-type: size;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 0;
+      min-width: 0;
+      overflow: hidden; /* belt and braces: nothing ever escapes the frame */
+    }
+    .pane .media {
+      /* exact fit by math: caption row = 21px line + --pad/2 margin; clamp
+         width up front so aspect-ratio never fights a max-height, and keep
+         a max-height fallback in case the width clamp fails anywhere */
+      width: 100%;
+      max-width: min(100%, calc((100cqh - 21px - var(--pad) / 2) * var(--arn, 0.8)));
+      max-height: calc(100cqh - 21px - var(--pad) / 2);
+      aspect-ratio: var(--ar, 4 / 5);
+    }
+    .pane figcaption {
+      width: 100%;
+      justify-content: center;
+      gap: calc(var(--pad) / 2);
+      margin-top: calc(var(--pad) / 2);
+      line-height: 21px;
+      white-space: nowrap; /* a wrapped caption would break the height math */
+    }
+    .pane figcaption .stat { line-height: 21px; }
+    .rail {
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--pad) / 2);
+      min-height: 0;
+      overflow-y: auto; /* tight heights: rail scrolls internally, frame holds */
+    }
+    .controls {
+      grid-template-columns: 1fr;
+      gap: calc(var(--pad) / 2);
+      margin-top: 0;
+      padding: 0 0 calc(var(--pad) / 2);
+      border-top: 0;
+    }
+    .controls .hint { margin-top: 8px; }
+    .code {
+      margin-top: 0;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .code .code-head { margin-bottom: calc(var(--pad) / 2); }
+    .code { flex-shrink: 0; }
+    .code textarea { flex: 1; height: auto; min-height: 96px; resize: none; }
+    /* no container-query support: approximate with viewport math */
+    @supports not (container-type: size) {
+      .pane .media {
+        max-width: min(100%, calc((100vh - 200px) * var(--arn, 0.8)));
+        max-height: calc(100vh - 200px);
+      }
+    }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div class="brand">
+      <h1>img2<span class="grad">gradient</span></h1>
+      <p class="tag">Turn any image into pure-CSS radial gradients that keep the original's spatial layout — a soft, paintable placeholder in a few&nbsp;kilobytes. 100% client-side, nothing&nbsp;uploaded.</p>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="pickBtn" type="button">Use your image</button>
+    </div>
+  </header>
+  <input type="file" id="file" accept="image/*" aria-label="Choose an image">
+
+  <main id="app">
+    <section class="compare" aria-label="Before and after comparison">
+      <figure class="pane" id="origPane">
+        <div class="media"><img id="origImg" alt="original image"></div>
+        <figcaption>Original <span class="stat">photo · or drop yours anywhere</span></figcaption>
+      </figure>
+      <figure class="pane">
+        <div class="media"><div id="gradBox" role="img" aria-label="CSS gradient approximation"></div></div>
+        <figcaption>Pure CSS <span class="stat"><b id="blobVal">169</b> blobs · <b id="sizeVal">0 B</b></span></figcaption>
+      </figure>
+    </section>
+
+    <div class="rail">
+    <section class="controls" aria-label="Generator controls">
+      <div>
+        <p class="ctl-label">Mode</p>
+        <div class="seg" role="radiogroup" aria-label="Generation mode">
+          <label><input type="radio" name="mode" id="modeSpatial" value="spatial" checked>Grid</label>
+          <label><input type="radio" name="mode" id="modeAdaptive" value="adaptive">Adaptive</label>
+          <label><input type="radio" name="mode" id="modeLinear" value="linear">Linear</label>
+        </div>
+        <p class="hint">Grid mirrors the photo. Adaptive spends blobs on detail. Linear is an abstract&nbsp;palette.</p>
+      </div>
+      <div>
+        <p class="ctl-label"><label for="complexity" style="all:inherit;cursor:pointer">Complexity</label></p>
+        <div class="slider-row">
+          <input type="range" id="complexity" min="2" max="16" value="13" step="1">
+          <span class="chip" id="gridVal">13×13</span>
+        </div>
+        <p class="hint">More blobs — closer match, bigger&nbsp;CSS.</p>
+      </div>
+      <div>
+        <p class="ctl-label"><label for="smooth" style="all:inherit;cursor:pointer">Smoothness</label></p>
+        <div class="slider-row">
+          <input type="range" id="smooth" min="100" max="260" value="170" step="5">
+          <span class="chip" id="smoothVal">1.70×</span>
+        </div>
+        <p class="hint">Bigger overlap — softer blend, muddier&nbsp;detail.</p>
+      </div>
+    </section>
+
+    <section class="code" aria-label="Generated CSS">
+      <div class="code-head">
+        <p class="ctl-label">Generated CSS — paste as a background anywhere</p>
+        <div class="code-actions">
+          <button class="btn btn-primary" id="copyBtn" type="button">Copy CSS</button>
+          <button class="btn btn-ghost" id="dlBtn" type="button">Download .css</button>
+        </div>
+      </div>
+      <textarea id="cssOut" readonly spellcheck="false" aria-label="Generated CSS"></textarea>
+    </section>
+    </div>
+  </main>
+</div>
+
+<div id="dropOverlay" aria-hidden="true"><span>Drop image to convert</span></div>
+
+<script>
+var DEMO_SRC = 'data:image/jpeg;base64,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';
+</script>
+<script>
+(function () {
+  'use strict';
+
+  var fileInput = document.getElementById('file');
+  var origImg = document.getElementById('origImg');
+  var origPane = document.getElementById('origPane');
+  var gradBox = document.getElementById('gradBox');
+  var complexity = document.getElementById('complexity');
+  var smooth = document.getElementById('smooth');
+  var cssOut = document.getElementById('cssOut');
+  var gridVal = document.getElementById('gridVal');
+  var blobVal = document.getElementById('blobVal');
+  var sizeVal = document.getElementById('sizeVal');
+  var smoothVal = document.getElementById('smoothVal');
+  var copyBtn = document.getElementById('copyBtn');
+  var dlBtn = document.getElementById('dlBtn');
+  var pickBtn = document.getElementById('pickBtn');
+  var dropOverlay = document.getElementById('dropOverlay');
+
+  // mid-size canvas holding the (downscaled) source image; sampling reads from this
+  var midCanvas = document.createElement('canvas');
+  var midCtx = midCanvas.getContext('2d', { willReadFrequently: true });
+  var loaded = false;
+
+  function loadImageSrc(src) {
+    var img = new Image();
+    img.onload = function () {
+      // downscale big images once to a 256px-max working canvas;
+      // all grid sampling then reads from this small canvas (fast + averaged)
+      var MAX = 256;
+      var scale = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
+      midCanvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      midCanvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      midCtx.imageSmoothingEnabled = true;
+      midCtx.imageSmoothingQuality = 'high';
+      midCtx.clearRect(0, 0, midCanvas.width, midCanvas.height);
+      midCtx.drawImage(img, 0, 0, midCanvas.width, midCanvas.height);
+      midData = midCtx.getImageData(0, 0, midCanvas.width, midCanvas.height);
+
+      origImg.src = src;
+      var ar = img.naturalWidth + ' / ' + img.naturalHeight;
+      var arn = img.naturalWidth / img.naturalHeight;
+      document.querySelectorAll('.pane .media').forEach(function (el) {
+        el.style.setProperty('--ar', ar);
+        el.style.setProperty('--arn', arn);
+      });
+      loaded = true;
+      render();
+    };
+    img.onerror = function () { alert('Could not decode that image.'); };
+    img.src = src;
+  }
+
+  function loadFile(file) {
+    if (!file || !file.type || file.type.indexOf('image/') !== 0) {
+      alert('Please choose an image file.');
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function (e) { loadImageSrc(e.target.result); };
+    reader.readAsDataURL(file);
+  }
+
+  // ---- sampling -------------------------------------------------------
+
+  // sRGB <-> linear-light: canvas drawImage averages in gamma space, which
+  // darkens and desaturates (Brasseur gamma error) — average in linear instead
+  var SRGB_TO_LIN = (function () {
+    var lut = new Float32Array(256);
+    for (var i = 0; i < 256; i++) {
+      var v = i / 255;
+      lut[i] = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    }
+    return lut;
+  })();
+
+  function linToSrgb(v) {
+    if (v <= 0) return 0;
+    var s = v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+    return Math.max(0, Math.min(255, Math.round(s * 255)));
+  }
+
+  var midData = null; // cached ImageData of midCanvas, refreshed per image load
+
+  // bucket-average midCanvas pixels into n×n cells in linear light,
+  // alpha-premultiplied; returns flat rgba array like getImageData
+  function sampleGrid(n) {
+    var W = midCanvas.width, H = midCanvas.height;
+    var d = midData.data;
+    var acc = new Float64Array(n * n * 4); // linear r,g,b premultiplied + alpha
+    var cnt = new Float64Array(n * n);
+    for (var y = 0; y < H; y++) {
+      var row = Math.min(n - 1, (y * n / H) | 0);
+      for (var x = 0; x < W; x++) {
+        var cell = row * n + Math.min(n - 1, (x * n / W) | 0);
+        var i = (y * W + x) * 4;
+        var a = d[i + 3] / 255;
+        var o = cell * 4;
+        acc[o] += SRGB_TO_LIN[d[i]] * a;
+        acc[o + 1] += SRGB_TO_LIN[d[i + 1]] * a;
+        acc[o + 2] += SRGB_TO_LIN[d[i + 2]] * a;
+        acc[o + 3] += a;
+        cnt[cell]++;
+      }
+    }
+    var out = new Uint8ClampedArray(n * n * 4);
+    for (var c = 0; c < n * n; c++) {
+      var o2 = c * 4, alpha = acc[o2 + 3];
+      if (alpha > 0) {
+        out[o2] = linToSrgb(acc[o2] / alpha);     // un-premultiply, re-encode
+        out[o2 + 1] = linToSrgb(acc[o2 + 1] / alpha);
+        out[o2 + 2] = linToSrgb(acc[o2 + 2] / alpha);
+        out[o2 + 3] = Math.round(alpha / cnt[c] * 255);
+      }
+    }
+    return out;
+  }
+
+  // shortest hex form: #rgb / #rgba / #rrggbb / #rrggbbaa (a = 0..255)
+  function hexByte(v) { return (v < 16 ? '0' : '') + v.toString(16); }
+  function toHex(r, g, b, a) {
+    var h = hexByte(r) + hexByte(g) + hexByte(b) +
+      (a !== undefined && a < 250 ? hexByte(a) : '');
+    var short = true;
+    for (var i = 0; i < h.length; i += 2) {
+      if (h[i] !== h[i + 1]) { short = false; break; }
+    }
+    if (short) {
+      var s = '';
+      for (i = 0; i < h.length; i += 2) s += h[i];
+      h = s;
+    }
+    return '#' + h;
+  }
+
+  function fmtPct(v) {
+    return (Math.round(v * 10) / 10) + '';
+  }
+
+  // ---- blob model + solver --------------------------------------------
+  //
+  // Both spatial modes produce a list of blobs:
+  //   { x, y   : center as fraction of box,
+  //     r      : radius as fraction of box width/height (elliptical, like the
+  //              grid mode's %-radii, so blobs scale with the box),
+  //     a      : peak alpha 0..1 (fixed — solver only adjusts colors),
+  //     cr..cb : working color (solver mutates),
+  //     tr..tb : sampled target color (fixed),
+  //     z      : stacking order, higher = painted on top }
+  //
+  // Overlapping semi-transparent blobs alpha-composite "over" each other, so
+  // emitting raw sampled colors blurs the image twice (muddy). With geometry
+  // and alphas fixed, the composite at any point is LINEAR in the blob colors:
+  // weight of blob q at point p = a_q·f_q(p)·Π(1-a·f) of layers above. We
+  // evaluate on an EVAL×EVAL grid and run SART (error normalized by row sum,
+  // column-averaged by weight) — own-center Jacobi and unnormalized least
+  // squares both diverge here because neighbor coupling exceeds self weight.
+
+  var EVAL = 32;
+
+  // per eval point: list of [blobIdx, falloff, weightStash], top-most first
+  function blobIndex(blobs, E) {
+    var pts = new Array(E * E);
+    for (var bi = 0; bi < blobs.length; bi++) {
+      var b = blobs[bi];
+      var x0 = Math.max(0, Math.floor((b.x - b.r) * E));
+      var x1 = Math.min(E - 1, Math.ceil((b.x + b.r) * E));
+      var y0 = Math.max(0, Math.floor((b.y - b.r) * E));
+      var y1 = Math.min(E - 1, Math.ceil((b.y + b.r) * E));
+      for (var py = y0; py <= y1; py++) {
+        for (var px = x0; px <= x1; px++) {
+          var dx = ((px + 0.5) / E - b.x) / b.r;
+          var dy = ((py + 0.5) / E - b.y) / b.r;
+          var f = 1 - Math.sqrt(dx * dx + dy * dy);
+          if (f <= 0) continue;
+          if (b.bell) f *= f; // quadratic falloff: no visible rim at blob edge
+          var p = py * E + px;
+          if (!pts[p]) pts[p] = [];
+          pts[p].push([bi, f, 0]);
+        }
+      }
+    }
+    for (var p2 = 0; p2 < E * E; p2++) {
+      if (pts[p2]) pts[p2].sort(function (u, v) { return blobs[v[0]].z - blobs[u[0]].z; });
+    }
+    return pts;
+  }
+
+  // alpha-weighted average of all eval cells (premultiplied) = base fill
+  function baseFrom(t, E) {
+    var bR = 0, bG = 0, bB = 0, bA = 0;
+    for (var p = 0; p < E * E; p++) {
+      var i = p * 4, a = t[i + 3] / 255;
+      bR += t[i] * a; bG += t[i + 1] * a; bB += t[i + 2] * a; bA += a;
+    }
+    return bA > 0
+      ? { r: bR / bA, g: bG / bA, b: bB / bA, a: bA / (E * E) }
+      : { r: 0, g: 0, b: 0, a: 0 };
+  }
+
+  // returns [mseBefore, mseAfter] over the eval grid (premultiplied units)
+  function sartSolve(blobs, base, t, E, iters) {
+    var pts = blobIndex(blobs, E);
+    var nb = blobs.length;
+    var num = new Float64Array(nb * 3), den = new Float64Array(nb);
+    var mse = [0, 0];
+    for (var it = 0; it < iters; it++) {
+      num.fill(0); den.fill(0);
+      var err2 = 0;
+      for (var p = 0; p < E * E; p++) {
+        var list = pts[p], ti = p * 4, ta = t[ti + 3] / 255;
+        var T = 1, sR = 0, sG = 0, sB = 0, k, w;
+        if (list) {
+          for (k = 0; k < list.length; k++) {
+            var b = blobs[list[k][0]], af = b.a * list[k][1];
+            w = af * T;
+            sR += b.cr * w; sG += b.cg * w; sB += b.cb * w;
+            list[k][2] = w;
+            T *= 1 - af;
+          }
+        }
+        sR += base.r * base.a * T; sG += base.g * base.a * T; sB += base.b * base.a * T;
+        var eR = t[ti] * ta - sR, eG = t[ti + 1] * ta - sG, eB = t[ti + 2] * ta - sB;
+        err2 += eR * eR + eG * eG + eB * eB;
+        if (!list) continue;
+        var rs = 0;
+        for (k = 0; k < list.length; k++) rs += list[k][2];
+        if (rs < 0.05) rs = 0.05;
+        for (k = 0; k < list.length; k++) {
+          var bi = list[k][0];
+          w = list[k][2];
+          num[bi * 3] += w * eR / rs;
+          num[bi * 3 + 1] += w * eG / rs;
+          num[bi * 3 + 2] += w * eB / rs;
+          den[bi] += w;
+        }
+      }
+      var m = err2 / (E * E * 3);
+      if (it === 0) mse[0] = m;
+      mse[1] = m;
+      for (var q = 0; q < nb; q++) {
+        if (!den[q]) continue;
+        var bb = blobs[q];
+        bb.cr = Math.max(0, Math.min(255, bb.cr + num[q * 3] / den[q]));
+        bb.cg = Math.max(0, Math.min(255, bb.cg + num[q * 3 + 1] / den[q]));
+        bb.cb = Math.max(0, Math.min(255, bb.cb + num[q * 3 + 2] / den[q]));
+      }
+    }
+    return mse;
+  }
+
+  // per-point residual after compositing (for greedy placement)
+  function residuals(blobs, base, t, E) {
+    var pts = blobIndex(blobs, E);
+    var mag = new Float64Array(E * E);
+    for (var p = 0; p < E * E; p++) {
+      var list = pts[p], ti = p * 4, ta = t[ti + 3] / 255;
+      var T = 1, sR = 0, sG = 0, sB = 0;
+      if (list) {
+        for (var k = 0; k < list.length; k++) {
+          var b = blobs[list[k][0]], af = b.a * list[k][1];
+          sR += b.cr * af * T; sG += b.cg * af * T; sB += b.cb * af * T;
+          T *= 1 - af;
+        }
+      }
+      sR += base.r * base.a * T; sG += base.g * base.a * T; sB += base.b * base.a * T;
+      var eR = t[ti] * ta - sR, eG = t[ti + 1] * ta - sG, eB = t[ti + 2] * ta - sB;
+      mag[p] = eR * eR + eG * eG + eB * eB;
+    }
+    return mag;
+  }
+
+  // fade the correction out on partial-alpha blobs: with alphas fixed, the
+  // solver cancels color spill over transparent edges by going black, which
+  // shows as a dark halo — keep sampled colors there instead
+  function alphaFade(blobs) {
+    for (var i = 0; i < blobs.length; i++) {
+      var b = blobs[i];
+      var ia = b.ia !== undefined ? b.ia : b.a; // image alpha, not blob alpha
+      if (ia >= 0.99) continue;
+      b.cr = b.tr + (b.cr - b.tr) * ia;
+      b.cg = b.tg + (b.cg - b.tg) * ia;
+      b.cb = b.tb + (b.cb - b.tb) * ia;
+    }
+  }
+
+  function emitBlobs(blobs, base) {
+    var sorted = blobs.slice().sort(function (u, v) { return v.z - u.z; }); // CSS first = top
+    var layers = [];
+    for (var i = 0; i < sorted.length; i++) {
+      var b = sorted[i];
+      var rad = fmtPct(b.r * 100) + '%';
+      var r = Math.round(b.cr), g = Math.round(b.cg), bl = Math.round(b.cb);
+      var solid = toHex(r, g, bl, Math.round(b.a * 255));
+      var end = toHex(r, g, bl, 0); // hex-00 renders same as transparent (premultiplied interp), fewer bytes
+      // bell blobs approximate the quadratic falloff with a mid stop at 50%
+      var stops = b.bell
+        ? solid + ',' + toHex(r, g, bl, Math.round(b.a * 0.25 * 255)) + ' 50%,' + end
+        : solid + ',' + end;
+      layers.push('radial-gradient(' + rad + ' ' + rad + ' at ' +
+        fmtPct(b.x * 100) + '% ' + fmtPct(b.y * 100) + '%,' + stops + ')');
+    }
+    var baseCss = base.a > 0
+      ? toHex(Math.round(base.r), Math.round(base.g), Math.round(base.b),
+          Math.round(base.a * 255))
+      : 'transparent';
+    return 'background-color:' + baseCss + ';\n' +
+      'background-image:' + layers.join(',') + ';';
+  }
+
+  function gridBlobs(n, overlap, zStep) {
+    var d = sampleGrid(n);
+    var blobs = [], z = 0;
+    for (var row = 0; row < n; row++) {
+      for (var col = 0; col < n; col++) {
+        var i = (row * n + col) * 4, a = d[i + 3];
+        if (a < 8) continue; // fully transparent cell: no blob
+        blobs.push({
+          x: (col + 0.5) / n, y: (row + 0.5) / n, r: overlap / n, a: a / 255,
+          cr: d[i], cg: d[i + 1], cb: d[i + 2],
+          tr: d[i], tg: d[i + 1], tb: d[i + 2],
+          z: z
+        });
+        z += zStep;
+      }
+    }
+    return blobs;
+  }
+
+  var lastBlobCount = 0;
+
+  // ---- grid mode: uniform N×N radial blobs ----------------------------
+
+  function buildSpatial(n, overlap) {
+    var t = sampleGrid(EVAL);
+    var base = baseFrom(t, EVAL);
+    var blobs = gridBlobs(n, overlap, -1); // row-major first = painted on top
+    var mse = sartSolve(blobs, base, t, EVAL, 12);
+    alphaFade(blobs);
+    lastBlobCount = blobs.length;
+    window.__i2gStats = { mode: 'grid', blobs: blobs.length, n: n, overlap: overlap,
+      mseBefore: mse[0], mseAfter: mse[1], evalE: EVAL };
+    return emitBlobs(blobs, base);
+  }
+
+  // ---- adaptive mode: greedy blobs at max-residual locations ----------
+
+  function buildAdaptive(budget, overlap) {
+    var t = sampleGrid(EVAL);
+    var base = baseFrom(t, EVAL);
+    // coarse uniform base guarantees full coverage; detail blobs stack on top
+    var bn = budget >= 32 ? 4 : 2;
+    var blobs = gridBlobs(bn, overlap, 1);
+    var z = blobs.length;
+    var mse0 = sartSolve(blobs, base, t, EVAL, 10)[0];
+
+    var guard = 0;
+    while (blobs.length < budget && guard++ < 64) {
+      var mag = residuals(blobs, base, t, EVAL);
+      var batch = Math.min(8, budget - blobs.length), placed = 0;
+      for (var k = 0; k < batch; k++) {
+        var best = -1, bestV = 3; // ~1 code value/channel = converged
+        for (var p = 0; p < EVAL * EVAL; p++) {
+          if (mag[p] > bestV) { bestV = mag[p]; best = p; }
+        }
+        if (best < 0) break;
+        var py = (best / EVAL) | 0, px = best % EVAL;
+        // size from the error extent: march 4 directions while the residual
+        // stays above 35% of the peak
+        var steps = 0;
+        var dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        for (var d2 = 0; d2 < 4; d2++) {
+          var s = 0;
+          while (s < EVAL) {
+            var nx = px + dirs[d2][0] * (s + 1), ny = py + dirs[d2][1] * (s + 1);
+            if (nx < 0 || nx >= EVAL || ny < 0 || ny >= EVAL) break;
+            if (mag[ny * EVAL + nx] < 0.35 * bestV) break;
+            s++;
+          }
+          steps += s;
+        }
+        // generous radii + soft alpha below: tiny opaque dots score well on
+        // MSE but look like speckles — favor broad overlapping blobs instead
+        var r = ((steps / 4 + 1.2) / EVAL) * 2.0 * (overlap / 1.7);
+        r = Math.max(2.2 / EVAL, Math.min(0.32, r));
+        // suppress this region so the batch picks distinct spots
+        var supp = Math.max(1, Math.round(r * EVAL * 0.5));
+        for (var sy = Math.max(0, py - supp); sy <= Math.min(EVAL - 1, py + supp); sy++) {
+          for (var sx = Math.max(0, px - supp); sx <= Math.min(EVAL - 1, px + supp); sx++) {
+            mag[sy * EVAL + sx] = 0;
+          }
+        }
+        var ti = best * 4, ta = t[ti + 3] / 255;
+        if (ta < 0.03) continue; // blobs can only add paint, not remove it
+        blobs.push({
+          x: (px + 0.5) / EVAL, y: (py + 0.5) / EVAL, r: r, a: ta * 0.85, ia: ta, bell: true,
+          cr: t[ti], cg: t[ti + 1], cb: t[ti + 2],
+          tr: t[ti], tg: t[ti + 1], tb: t[ti + 2],
+          z: z++
+        });
+        placed++;
+      }
+      if (!placed) break;
+      sartSolve(blobs, base, t, EVAL, 8);
+    }
+
+    var mse = sartSolve(blobs, base, t, EVAL, 12);
+    alphaFade(blobs);
+    lastBlobCount = blobs.length;
+    window.__i2gStats = { mode: 'adaptive', blobs: blobs.length, budget: budget,
+      overlap: overlap, mseBefore: mse0, mseAfter: mse[1], evalE: EVAL };
+    return emitBlobs(blobs, base);
+  }
+
+  // ---- linear mode: dominant-color frequency buckets ------------------
+
+  function buildLinear() {
+    var d = sampleGrid(32); // 1024 samples is plenty for dominant colors
+    var buckets = {};
+    for (var i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 8) continue;
+      // quantize to 4 bits per channel
+      var key = (d[i] >> 4) + ',' + (d[i + 1] >> 4) + ',' + (d[i + 2] >> 4);
+      var bkt = buckets[key];
+      if (!bkt) { bkt = buckets[key] = { r: 0, g: 0, b: 0, n: 0 }; }
+      bkt.r += d[i]; bkt.g += d[i + 1]; bkt.b += d[i + 2]; bkt.n++;
+    }
+    var list = Object.keys(buckets).map(function (k) { return buckets[k]; });
+    list.sort(function (a, b) { return b.n - a.n; });
+    var top = list.slice(0, 6);
+    if (!top.length) return 'background: transparent;';
+    var stops = top.map(function (bkt, idx) {
+      var c = toHex(Math.round(bkt.r / bkt.n), Math.round(bkt.g / bkt.n), Math.round(bkt.b / bkt.n));
+      var pos = top.length === 1 ? 0 : Math.round(idx / (top.length - 1) * 100);
+      return c + ' ' + pos + '%';
+    });
+    return 'background:linear-gradient(135deg in oklab,' + stops.join(',') + ');';
+  }
+
+  // ---- render ---------------------------------------------------------
+
+  function currentMode() {
+    if (document.getElementById('modeLinear').checked) return 'linear';
+    if (document.getElementById('modeAdaptive').checked) return 'adaptive';
+    return 'spatial';
+  }
+
+  function render() {
+    if (!loaded) return;
+    var n = parseInt(complexity.value, 10);
+    var overlap = parseInt(smooth.value, 10) / 100;
+    var mode = currentMode();
+    var css;
+    lastBlobCount = n * n;
+    if (mode === 'spatial') css = buildSpatial(n, overlap);
+    else if (mode === 'adaptive') css = buildAdaptive(n * n, overlap);
+    else css = buildLinear();
+
+    cssOut.value = css;
+    gridVal.textContent = mode === 'adaptive' ? (n * n) + ' max' : n + '×' + n;
+    blobVal.textContent = String(mode === 'linear' ? 1 : lastBlobCount);
+    smoothVal.textContent = overlap.toFixed(2) + '×';
+    var bytes = new Blob([css]).size;
+    sizeVal.textContent = bytes >= 1024 ? (bytes / 1024).toFixed(1) + ' KB' : bytes + ' B';
+
+    // apply to preview: convert declarations to inline style
+    gradBox.setAttribute('style', css.replace(/\n/g, ' '));
+  }
+
+  // ---- wiring ---------------------------------------------------------
+
+  pickBtn.addEventListener('click', function () { fileInput.click(); });
+  origPane.querySelector('.media').addEventListener('click', function () { fileInput.click(); });
+  fileInput.addEventListener('change', function () { loadFile(fileInput.files[0]); });
+
+  var dragDepth = 0;
+  window.addEventListener('dragenter', function (e) {
+    e.preventDefault();
+    dragDepth++;
+    dropOverlay.classList.add('show');
+  });
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('dragleave', function (e) {
+    e.preventDefault();
+    if (--dragDepth <= 0) { dragDepth = 0; dropOverlay.classList.remove('show'); }
+  });
+  window.addEventListener('drop', function (e) {
+    e.preventDefault();
+    dragDepth = 0;
+    dropOverlay.classList.remove('show');
+    if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+  });
+
+  complexity.addEventListener('input', render);
+  smooth.addEventListener('input', render);
+  document.getElementById('modeSpatial').addEventListener('change', render);
+  document.getElementById('modeAdaptive').addEventListener('change', render);
+  document.getElementById('modeLinear').addEventListener('change', render);
+
+  copyBtn.addEventListener('click', function () {
+    var done = function () {
+      copyBtn.classList.add('copied');
+      copyBtn.textContent = 'Copied!';
+      setTimeout(function () {
+        copyBtn.classList.remove('copied');
+        copyBtn.textContent = 'Copy CSS';
+      }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(cssOut.value).then(done, function () {
+        cssOut.select(); document.execCommand('copy'); done();
+      });
+    } else {
+      cssOut.select(); document.execCommand('copy'); done();
+    }
+  });
+
+  dlBtn.addEventListener('click', function () {
+    var blob = new Blob(['.img-gradient {\n' + cssOut.value.replace(/^/gm, '  ') + '\n}\n'],
+      { type: 'text/css' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'img2gradient.css';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // dogfooding: open with the demo photo already converted
+  loadImageSrc(DEMO_SRC);
+})();
+</script>
+</body>
+</html>

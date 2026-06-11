@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gamma error in dominant-color extraction — demo</title>
+<style>
+  :root {
+    --paper: #f5f1e8;
+    --ink: #211d18;
+    --muted: #5f574b;
+    --line: #d8cfbe;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 40px clamp(20px, 4vw, 64px);
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: clamp(26px, 3.5vw, 40px); margin: 0 0 10px; line-height: 1.15; }
+  .sub { color: var(--muted); font-size: 16px; line-height: 1.6; max-width: 70ch; margin: 0 0 8px; }
+  .sub a { color: inherit; }
+  .formula {
+    font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: #211d18; color: #e8dfcf;
+    border-radius: 8px; padding: 14px 18px; margin: 18px 0 30px;
+    overflow-x: auto;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 220px 1fr 1fr;
+    gap: 18px;
+    align-items: stretch;
+    padding: 18px 0;
+    border-top: 1px solid var(--line);
+  }
+  .row img { width: 100%; aspect-ratio: 3/2; object-fit: cover; border-radius: 6px; display: block; }
+  .swatch {
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 12px 14px;
+    min-height: 110px;
+    border: 1px solid rgb(33 29 24 / .15);
+  }
+  .swatch .label {
+    font-size: 13px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    background: rgb(245 241 232 / .92);
+    border-radius: 5px;
+    padding: 7px 9px;
+    width: fit-content;
+  }
+  .swatch .hex {
+    font: 600 16px/1 ui-monospace, monospace;
+    background: rgb(245 241 232 / .92);
+    border-radius: 5px;
+    padding: 7px 9px;
+    margin-top: 6px;
+    width: fit-content;
+  }
+  .delta { font-size: 14px; color: var(--muted); margin-top: 6px; }
+  #drop {
+    margin-top: 30px;
+    border: 2px dashed var(--line);
+    border-radius: 10px;
+    padding: 26px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 15px;
+    cursor: pointer;
+  }
+  #status { color: var(--muted); font-size: 14px; margin: 14px 0; }
+  @media (max-width: 760px) { .row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>The gamma error in dominant-color extraction</h1>
+  <p class="sub">Resizing an image to 1×1 px with Imagick/GD (default pipeline) averages <em>gamma-encoded</em> sRGB values. The physically correct average — what you see squinting at the photo from across the room — averages in <em>linear light</em>, then re-encodes. Gamma-space averaging skews placeholder colors darker and duller; the gap grows with image contrast. Reference: <a href="http://www.ericbrasseur.org/gamma.html">Eric Brasseur, “Gamma error in picture scaling”</a>.</p>
+  <div class="formula">gamma avg:  mean(srgb)                       ← Imagick/GD default, e.g. -resize 1x1
+linear avg: srgb_encode( mean(srgb_decode) )  ← -colorspace RGB -resize 1x1 -colorspace sRGB</div>
+  <div id="status">Loading sample images…</div>
+  <div id="rows"></div>
+  <div id="drop">Drop your own image here (or click) — computed locally, nothing uploads</div>
+  <input type="file" id="file" accept="image/*" style="display:none">
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var LIN = (function () {
+    var l = new Float64Array(256);
+    for (var i = 0; i < 256; i++) {
+      var v = i / 255;
+      l[i] = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    }
+    return l;
+  })();
+
+  function enc(v) {
+    var s = v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+    return Math.max(0, Math.min(255, Math.round(s * 255)));
+  }
+
+  function hex(r, g, b) {
+    return '#' + [r, g, b].map(function (v) {
+      return (v < 16 ? '0' : '') + v.toString(16);
+    }).join('');
+  }
+
+  // perceived lightness (CIE L*) for the delta readout
+  function lstar(r, g, b) {
+    var y = 0.2126 * LIN[r] + 0.7152 * LIN[g] + 0.0722 * LIN[b];
+    return y <= 0.008856 ? y * 903.3 : Math.pow(y, 1 / 3) * 116 - 16;
+  }
+
+  function averages(img) {
+    var c = document.createElement('canvas');
+    var W = 256, H = Math.max(1, Math.round(256 * img.naturalHeight / img.naturalWidth));
+    c.width = W; c.height = H;
+    var ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, W, H);
+    var d = ctx.getImageData(0, 0, W, H).data;
+    var gr = 0, gg = 0, gb = 0, lr = 0, lg = 0, lb = 0, n = d.length / 4;
+    for (var i = 0; i < d.length; i += 4) {
+      gr += d[i]; gg += d[i + 1]; gb += d[i + 2];
+      lr += LIN[d[i]]; lg += LIN[d[i + 1]]; lb += LIN[d[i + 2]];
+    }
+    return {
+      gamma: [Math.round(gr / n), Math.round(gg / n), Math.round(gb / n)],
+      linear: [enc(lr / n), enc(lg / n), enc(lb / n)]
+    };
+  }
+
+  function addRow(img, title) {
+    var a;
+    try { a = averages(img); }
+    catch (e) {
+      document.getElementById('status').textContent = 'Could not read pixels for ' + title + ' (CORS).';
+      return;
+    }
+    var g = a.gamma, l = a.linear;
+    var dL = lstar(l[0], l[1], l[2]) - lstar(g[0], g[1], g[2]);
+    var row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML =
+      '<div><img alt="' + title + '"><div class="delta">' + title +
+      ' · linear is ' + (Math.round(dL * 10) / 10) + ' L* lighter</div></div>' +
+      '<div class="swatch" style="background:' + hex(g[0], g[1], g[2]) + '">' +
+        '<span class="label">gamma average — Imagick/GD default</span>' +
+        '<span class="hex">' + hex(g[0], g[1], g[2]) + '</span></div>' +
+      '<div class="swatch" style="background:' + hex(l[0], l[1], l[2]) + '">' +
+        '<span class="label">linear average — gamma-correct</span>' +
+        '<span class="hex">' + hex(l[0], l[1], l[2]) + '</span></div>';
+    row.querySelector('img').src = img.src;
+    document.getElementById('rows').appendChild(row);
+  }
+
+  // synthetic worst case: black/white checkerboard
+  function checkerboard() {
+    var c = document.createElement('canvas');
+    c.width = 240; c.height = 160;
+    var ctx = c.getContext('2d');
+    for (var y = 0; y < 16; y++) {
+      for (var x = 0; x < 24; x++) {
+        ctx.fillStyle = (x + y) % 2 ? '#fff' : '#000';
+        ctx.fillRect(x * 10, y * 10, 10, 10);
+      }
+    }
+    var img = new Image();
+    img.onload = function () { addRow(img, 'checkerboard (worst case)'); };
+    img.src = c.toDataURL();
+  }
+
+  var SAMPLES = [
+    ['https://picsum.photos/id/1015/600/400', 'river valley'],
+    ['https://picsum.photos/id/1043/600/400', 'high-contrast portrait'],
+    ['https://picsum.photos/id/110/600/400', 'dark forest'],
+    ['https://picsum.photos/id/96/600/400', 'sand dunes'],
+    ['https://picsum.photos/id/167/600/400', 'foliage']
+  ];
+
+  var pending = SAMPLES.length;
+  function loadedOne() {
+    if (--pending <= 0) document.getElementById('status').textContent = '';
+  }
+
+  checkerboard();
+  SAMPLES.forEach(function (s) {
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function () { addRow(img, s[1]); loadedOne(); };
+    img.onerror = loadedOne;
+    img.src = s[0];
+  });
+
+  var drop = document.getElementById('drop');
+  var file = document.getElementById('file');
+  drop.addEventListener('click', function () { file.click(); });
+  file.addEventListener('change', function () { handle(file.files[0]); });
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); });
+  });
+  drop.addEventListener('drop', function (e) {
+    e.preventDefault();
+    if (e.dataTransfer.files.length) handle(e.dataTransfer.files[0]);
+  });
+  function handle(f) {
+    if (!f || f.type.indexOf('image/') !== 0) return;
+    var r = new FileReader();
+    r.onload = function (e) {
+      var img = new Image();
+      img.onload = function () { addRow(img, f.name); };
+      img.src = e.target.result;
+    };
+    r.readAsDataURL(f);
+  }
+})();
+</script>
+</body>
+</html>

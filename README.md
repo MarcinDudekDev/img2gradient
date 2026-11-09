@@ -24,6 +24,8 @@ Under the hood it does the math properly:
 | **Adaptive** | greedy blobs placed at max-residual locations, sized from local error | logos, UI shots, subjects on plain backgrounds |
 | **Linear** | dominant-color `linear-gradient` (in oklab) | abstract backgrounds |
 
+**Refine** (button under the modes, for Grid and Adaptive) runs a second pass in a Web Worker: it moves each blob, stretches it into an ellipse and fades it so the composite fits the photo in OKLab, then writes positions and radii as whole percentages. It takes about a second. Across 8 test images at 13×13, refining cuts the color error vs the photo (CIEDE2000 on blurred copies) from 3.28 to 1.32, about 2.5× lower, for ~1.6 KB of brotli'd CSS instead of ~1.1 KB. At the same compressed size it still has about half the error of plain Grid. That is the best-looking output the tool makes.
+
 ## Use as image placeholders (LQIP)
 
 At 8–16 blobs (~0.4–1.5 KB) the output works as a low-quality image placeholder with structural advantages over the usual suspects: it paints before any image byte or JavaScript arrives (BlurHash/ThumbHash render only after their JS decoder runs), it can't hurt LCP (CSS gradients are excluded as LCP candidates), and it needs zero decode and zero dependencies — it's just a `background` declaration on the image's wrapper.

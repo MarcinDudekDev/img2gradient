@@ -777,6 +777,9 @@ if (typeof module !== 'undefined') module.exports = { fit: fit, emit: emit };
   }
 
   function loadFile(file) {
+    // stop a running refine now: it would otherwise finish during the new
+    // image's decode and write the old photo's CSS
+    cancelRefine();
     if (!file || !file.type || file.type.indexOf('image/') !== 0) {
       alert('Please choose an image file.');
       return;

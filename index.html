@@ -280,8 +280,9 @@
   .refine-row .hint { margin: 0; flex: 1 1 0; min-width: 0; contain: inline-size; }
   /* fixed width that fits "Refining 400/400", so progress text never reflows the row */
   #refineBtn { white-space: nowrap; font-variant-numeric: tabular-nums; flex: none; min-width: 18.5ch; }
-  #refineBtn:disabled { opacity: .45; cursor: not-allowed; }
-  #refineBtn:disabled:hover { background: transparent; color: var(--ink); }
+  /* aria-disabled (not the disabled attribute) keeps keyboard focus on the button during a run */
+  #refineBtn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+  #refineBtn[aria-disabled="true"]:hover { background: transparent; color: var(--ink); }
   #refineBtn.busy { cursor: progress; }
   #copyBtn.copied { background: #2c6e3f; border-color: #2c6e3f; color: #fff; }
 
@@ -442,7 +443,7 @@
         <p class="hint">Grid mirrors the photo. Adaptive spends blobs on detail. Linear is an abstract&nbsp;palette.</p>
         <div class="refine-row">
           <button class="btn btn-ghost" id="refineBtn" type="button">Refine</button>
-          <p class="hint" id="refineHint">Moves, stretches and fades each blob to fit the photo. Takes a few&nbsp;seconds.</p>
+          <p class="hint" id="refineHint" aria-live="polite">Moves, stretches and fades each blob to fit the photo. Takes a few&nbsp;seconds.</p>
         </div>
       </div>
       <div>
@@ -1181,7 +1182,7 @@ if (typeof module !== 'undefined') module.exports = { fit: fit, emit: emit };
     refineBtn.textContent = REFINE_LABEL;
     refineBtn.classList.remove('busy');
     refineBtn.removeAttribute('aria-busy');
-    refineBtn.disabled = !loaded || currentMode() === 'linear';
+    refineBtn.setAttribute('aria-disabled', String(!loaded || currentMode() === 'linear'));
     refineHint.innerHTML = hint || REFINE_HINT;
   }
 
@@ -1241,7 +1242,7 @@ if (typeof module !== 'undefined') module.exports = { fit: fit, emit: emit };
     refineWorker = w;
     refineBtn.classList.add('busy');
     refineBtn.setAttribute('aria-busy', 'true');
-    refineBtn.disabled = true;
+    refineBtn.setAttribute('aria-disabled', 'true');
     refineBtn.textContent = 'Refining 0/' + REFINE_STEPS;
     w.onmessage = function (e) {
       if (w !== refineWorker) return; // stale run
